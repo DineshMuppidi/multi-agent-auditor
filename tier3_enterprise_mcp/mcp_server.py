@@ -37,7 +37,17 @@ def inspect_s3_buckets() -> str:
         
         response = s3_client.list_buckets()
         buckets = [b['Name'] for b in response.get('Buckets', [])]
-        data = [{"bucket_name": name, "endpoint": S3_ENDPOINT_URL} for name in buckets]
+        # Naming-convention heuristic (mirrors tier2_cloud_sandbox/tools.py) standing in
+        # for real ACL/encryption-policy lookups, so risk_engine.py has signal to score.
+        data = [
+            {
+                "bucket_name": name,
+                "endpoint": S3_ENDPOINT_URL,
+                "is_public": "public" in name or "temp" in name,
+                "encryption_enabled": "unencrypted" not in name,
+            }
+            for name in buckets
+        ]
         return json.dumps(data)
     except Exception as e:
         return json.dumps([{

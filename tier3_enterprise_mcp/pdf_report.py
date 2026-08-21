@@ -229,6 +229,27 @@ blockquote {
     font-weight: 700;
     letter-spacing: 0.3px;
 }
+
+.risk-register-title {
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #718096;
+    margin: 4px 0 8px 0;
+}
+.control-chip {
+    display: inline-block;
+    background: #edf2f7;
+    color: #2d3748;
+    border: 1px solid #cbd5e0;
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin: 1px 3px 1px 0;
+    font-size: 7.8pt;
+    font-family: 'Liberation Mono', 'DejaVu Sans Mono', monospace;
+}
+.finding-resource { font-weight: 700; }
+.finding-category { color: #718096; font-size: 8.6pt; }
 """
 
 
@@ -240,17 +261,9 @@ def _score_tier(score: int):
     return "#c53030", "Critical Risk"
 
 
-def _extract_score_card(markdown_text: str):
-    """Pulls a trailing "[**Label**: NN/100]" line out of the markdown and
-    returns (remaining_markdown, score_card_html_or_None)."""
-    match = _SCORE_PATTERN.search(markdown_text)
-    if not match:
-        return markdown_text, None
-
-    label, score = match.group(1).strip(), int(match.group(2))
-    remaining = (markdown_text[: match.start()] + markdown_text[match.end():]).strip()
+def _score_card_html(label: str, score: int) -> str:
     color, tier = _score_tier(score)
-    card = f"""
+    return f"""
     <div class="score-card">
         <div class="score-value" style="color:{color};">{score}<span class="score-max">/100</span></div>
         <div class="score-label">{label}</div>
@@ -258,17 +271,113 @@ def _extract_score_card(markdown_text: str):
         <div class="score-tier" style="color:{color};">{tier}</div>
     </div>
     """
-    return remaining, card
 
 
-def render_report_pdf(markdown_text: str, doc_tag: str) -> bytes:
+def _extract_score_card(markdown_text: str):
+    """Fallback path: pulls a trailing "[**Label**: NN/100]" line out of the
+    markdown if present and returns (remaining_markdown, score_card_html_or_None).
+    Only used when the caller doesn't pass a deterministic compliance_score —
+    the risk engine's score should always be preferred over an LLM-guessed one.
+    """
+    match = _SCORE_PATTERN.search(markdown_text)
+    if not match:
+        return markdown_text, None
+
+    label, score = match.group(1).strip(), int(match.group(2))
+    remaining = (markdown_text[: match.start()] + markdown_text[match.end():]).strip()
+    return remaining, _score_card_html(label, score)
+
+
+CONTROL_FRAMEWORK_LABELS = {
+    "soc2_controls": "SOC 2",
+    "nist_800_53_controls": "NIST 800-53",
+}
+
+_SEVERITY_BADGE_CLASS = {
+    "Critical": "badge-critical",
+    "High": "badge-high",
+    "Medium": "badge-medium",
+    "Low": "badge-low",
+}
+
+
+def _control_chips(control_ids) -> str:
+    return "".join(f'<span class="control-chip">{c}</span>' for c in control_ids)
+
+
+def render_risk_register(findings) -> str:
+    """Renders a deterministic Likelihood x Impact risk register table from
+    risk_engine.score_findings()["findings"]. Returns "" if there's nothing
+    to show, so callers can splice it in unconditionally."""
+    if not findings:
+        return ""
+
+    rows = []
+    for f in findings:
+        badge_class = _SEVERITY_BADGE_CLASS.get(f["severity"], "badge-low")
+        rows.append(f"""
+        <tr>
+            <td>
+                <span class="finding-resource">{f['resource']}</span><br>
+                <span class="finding-category">{f['category']}</span>
+            </td>
+            <td>
+                {_control_chips(f['soc2_controls'])}<br>
+                {_control_chips(f['nist_800_53_controls'])}
+            </td>
+            <td style="text-align:center;">{f['likelihood']}</td>
+            <td style="text-align:center;">{f['impact']}</td>
+            <td style="text-align:center;font-weight:700;">{f['risk_score']}</td>
+            <td><span class="badge {badge_class}">{f['severity']}</span></td>
+        </tr>
+        """)
+
+    return f"""
+    <div class="risk-register-title">Risk Register — Deterministic Likelihood &times; Impact Scoring</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Resource / Finding</th>
+                <th>Mapped Controls (SOC 2 / NIST 800-53)</th>
+                <th style="text-align:center;">Likelihood</th>
+                <th style="text-align:center;">Impact</th>
+                <th style="text-align:center;">Risk Score</th>
+                <th>Severity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {''.join(rows)}
+        </tbody>
+    </table>
+    """
+
+
+def render_report_pdf(
+    markdown_text: str,
+    doc_tag: str,
+    compliance_score: dict = None,
+    risk_findings: list = None,
+) -> bytes:
     """Converts a Markdown compliance report into a styled PDF and returns
     the raw PDF bytes.
 
     doc_tag: short label shown in the top-right pill, e.g. "Executive Summary"
              or "Remediation Playbook".
+    compliance_score: optional {"label": str, "score": int 0-100, higher=better}
+             computed deterministically by risk_engine — takes priority over
+             any "[**Label**: NN/100]" bracket the LLM may have written.
+    risk_findings: optional list of risk_engine finding dicts, rendered as a
+             Risk Register table beneath the score card.
     """
-    body_markdown, score_card_html = _extract_score_card(markdown_text)
+    body_markdown, extracted_card_html = _extract_score_card(markdown_text)
+
+    if compliance_score is not None:
+        score_card_html = _score_card_html(compliance_score["label"], compliance_score["score"])
+        # Still strip any LLM-invented bracket text from the body even though
+        # we're not using its card, so it doesn't show up twice.
+        body_markdown = re.sub(_SCORE_PATTERN, "", body_markdown).strip()
+    else:
+        score_card_html = extracted_card_html
 
     body_html = md_lib.markdown(
         body_markdown, extensions=["tables", "fenced_code", "sane_lists"]
@@ -279,6 +388,7 @@ def render_report_pdf(markdown_text: str, doc_tag: str) -> bytes:
     )
 
     generated_at = datetime.now().strftime("%B %d, %Y · %H:%M")
+    risk_register_html = render_risk_register(risk_findings) if risk_findings else ""
 
     html_doc = f"""<!DOCTYPE html>
 <html>
@@ -294,6 +404,7 @@ def render_report_pdf(markdown_text: str, doc_tag: str) -> bytes:
     </div>
     <div class="meta-line">Generated {generated_at} &middot; Confidential &mdash; Internal Distribution Only</div>
     {score_card_html or ""}
+    {risk_register_html}
     {body_html}
 </body>
 </html>"""

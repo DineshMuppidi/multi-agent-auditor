@@ -9,7 +9,12 @@ from pdf_report import render_report_pdf
 
 load_dotenv()
 
-def send_audit_report_email(executive_report: str, technical_guide: str, recipient_email: str = None):
+def send_audit_report_email(
+    executive_report: str,
+    technical_guide: str,
+    recipient_email: str = None,
+    risk_result: dict = None,
+):
     """Sends an email with two attachments: Executive Report & Technical Remediation Playbook."""
     smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
     smtp_port = int(os.getenv("SMTP_PORT", 587))
@@ -45,8 +50,22 @@ def send_audit_report_email(executive_report: str, technical_guide: str, recipie
     """
     msg.attach(MIMEText(html_body, 'html'))
 
+    compliance_score = None
+    risk_findings = None
+    if risk_result:
+        compliance_score = {
+            "label": "Compliance Score",
+            "score": max(0, min(100, 100 - risk_result["risk_exposure_index"])),
+        }
+        risk_findings = risk_result.get("findings")
+
     try:
-        executive_pdf = render_report_pdf(executive_report, "Executive Summary")
+        executive_pdf = render_report_pdf(
+            executive_report,
+            "Executive Summary",
+            compliance_score=compliance_score,
+            risk_findings=risk_findings,
+        )
         technical_pdf = render_report_pdf(technical_guide, "Remediation Playbook")
     except Exception as e:
         print(f"❌ [PDF Error] Failed to render report PDFs: {e}")

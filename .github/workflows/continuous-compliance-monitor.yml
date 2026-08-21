@@ -1,0 +1,52 @@
+name: Continuous Compliance Monitor
+
+# Turns Tier 3 from a script you run by hand into an actual continuous-monitoring
+# control: a deterministic Likelihood x Impact risk scan runs on a schedule (or
+# on demand), fails the job red when a Critical finding exists, publishes a
+# findings snapshot as a downloadable artifact + job summary, and optionally
+# posts a Slack alert if SLACK_WEBHOOK_URL is configured as a repo secret.
+#
+# Deliberately does NOT run the Ollama-narrated executive/technical reports or
+# email dispatch — those need a local Ollama model and a human at the HITL
+# prompt, and stay a human-run flow (`python app.py`). CI runs the fast,
+# deterministic scoring engine only.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # daily at 13:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Risk-Scored Compliance Scan (Tier 3)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tier3_enterprise_mcp
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install "moto[server]" boto3 "mcp[cli]" fastmcp
+
+      - name: Run continuous compliance scan
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python continuous_scan.py
+
+      - name: Upload findings artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: risk-findings-${{ github.run_id }}
+          path: tier3_enterprise_mcp/reports/latest_risk_findings.json
+          retention-days: 90

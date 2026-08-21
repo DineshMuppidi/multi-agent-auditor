@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-08-21T04:44:57.830728+00:00",
+  "risk_exposure_index": 48,
+  "severity_counts": {
+    "Critical": 1,
+    "High": 1,
+    "Medium": 0,
+    "Low": 1
+  },
+  "finding_count": 3,
+  "findings": [
+    {
+      "finding_id": "S3-public-marketing-assets-temp",
+      "resource": "public-marketing-assets-temp",
+      "category": "Publicly Accessible S3 Bucket",
+      "description": "'public-marketing-assets-temp' allows public access, exposing its contents to the internet.",
+      "likelihood": 5,
+      "impact": 4,
+      "risk_score": 20,
+      "severity": "Critical",
+      "soc2_controls": [
+        "CC6.1",
+        "CC6.6"
+      ],
+      "nist_800_53_controls": [
+        "AC-3",
+        "AC-4",
+        "SC-7"
+      ]
+    },
+    {
+      "finding_id": "S3-unencrypted-storage-bucket",
+      "resource": "unencrypted-storage-bucket",
+      "category": "Unencrypted S3 Bucket",
+      "description": "'unencrypted-storage-bucket' does not enforce server-side encryption at rest.",
+      "likelihood": 3,
+      "impact": 4,
+      "risk_score": 12,
+      "severity": "High",
+      "soc2_controls": [
+        "CC6.1",
+        "CC6.7"
+      ],
+      "nist_800_53_controls": [
+        "SC-13",
+        "SC-28"
+      ]
+    },
+    {
+      "finding_id": "JIRA-COMP-101",
+      "resource": "COMP-101",
+      "category": "Open Remediation Item (POA&M)",
+      "description": "'Fix public S3 bucket permissions' is still In Progress and unverified as remediated.",
+      "likelihood": 2,
+      "impact": 2,
+      "risk_score": 4,
+      "severity": "Low",
+      "soc2_controls": [
+        "CC7.2"
+      ],
+      "nist_800_53_controls": [
+        "CA-5"
+      ]
+    }
+  ]
+}

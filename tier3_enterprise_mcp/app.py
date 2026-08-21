@@ -13,6 +13,7 @@ load_dotenv()
 # Add directory to sys path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from email_utils import send_audit_report_email
+from risk_engine import score_findings
 
 # 1. Initialize Local Ollama LLM
 llm = ChatOpenAI(
@@ -25,26 +26,36 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 MCP_SERVER_PATH = os.path.join(CURRENT_DIR, "mcp_server.py")
 
 
-def ensure_moto_running():
-    """Checks if local AWS emulator is running; auto-starts if offline."""
+def _port_open(host, port):
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex(('127.0.0.1', 4566))
+    result = sock.connect_ex((host, port))
     sock.close()
-    
-    if result == 0:
+    return result == 0
+
+
+def ensure_moto_running(startup_timeout=15.0):
+    """Checks if local AWS emulator is running; auto-starts if offline."""
+    import time
+
+    if _port_open('127.0.0.1', 4566):
         print("✅ [Auto-Manager] Local AWS Emulator (moto_server) is already running on port 4566.")
         return None
-    else:
-        print("🚀 [Auto-Manager] Starting background moto_server instance on port 4566...")
-        proc = subprocess.Popen(
-            ["moto_server", "s3", "-p", "4566"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        import time
-        time.sleep(2)
-        return proc
+
+    print("🚀 [Auto-Manager] Starting background moto_server instance on port 4566...")
+    proc = subprocess.Popen(
+        ["moto_server", "-p", "4566"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+
+    deadline = time.monotonic() + startup_timeout
+    while time.monotonic() < deadline:
+        if _port_open('127.0.0.1', 4566):
+            return proc
+        time.sleep(0.5)
+
+    raise RuntimeError(f"moto_server did not start listening on port 4566 within {startup_timeout}s")
 
 
 async def run_mcp_audit():
@@ -77,21 +88,45 @@ async def run_mcp_audit():
                     "jira_tickets": json.loads(jira_result.content[0].text)
                 }
 
+                # 2b. Deterministic Risk Scoring (Likelihood x Impact, mapped to
+                # SOC 2 / NIST 800-53 controls) — computed in Python, not guessed
+                # by the LLM. See risk_engine.py.
+                print("📐 [Agent 1b: Risk Scoring] Computing Likelihood x Impact risk register...")
+                risk_result = score_findings(collected_data)
+                compliance_score = max(0, min(100, 100 - risk_result["risk_exposure_index"]))
+                counts = risk_result["severity_counts"]
+                print(
+                    f"   • Compliance Score: {compliance_score}/100  |  "
+                    f"Critical: {counts['Critical']}  High: {counts['High']}  "
+                    f"Medium: {counts['Medium']}  Low: {counts['Low']}"
+                )
+
                 # 3. LLM Call #1: Executive CISO Summary (No Code)
                 print("\n⚖️ [Agent 2.1: Risk Auditor] Generating Executive CISO Summary with Ollama...")
                 exec_prompt = f"""
-You are a Lead CISO Compliance Auditor. Analyze the following security telemetry:
+You are a Lead CISO Compliance Auditor. A deterministic risk-scoring engine has
+already analyzed the telemetry below and computed an authoritative risk register
+(Likelihood x Impact, 1-25 scale, mapped to SOC 2 / NIST 800-53 controls). Do NOT
+invent your own numeric risk scores or compliance score — reference the ones given.
+
+Raw telemetry:
 {json.dumps(collected_data, indent=2)}
+
+Computed risk register (authoritative — use these numbers):
+{json.dumps(risk_result, indent=2)}
+
+Overall Compliance Score (authoritative): {compliance_score}/100
 
 Generate an Executive CISO Audit Report in Markdown.
 STRICT RULES:
 - DO NOT output code blocks, JSON, or AWS CLI commands.
-- Focus ONLY on business risk, overall compliance score (0-100), telemetry risk matrix, and CIS AWS benchmarks violated.
+- DO NOT invent a different compliance score or risk matrix — narrate the ones given above.
+- Focus on business risk narrative, what the risk register means for the organization, and CIS AWS benchmarks violated.
 
 Format:
 # 📊 Executive CISO Security Audit Report
 ## 1. Executive Summary Brief
-## 2. Key Telemetry Findings & Risk Matrix (Table format)
+## 2. Risk Register Narrative (reference the provided Likelihood/Impact findings — do not re-tabulate, a Risk Register table is attached separately)
 ## 3. CIS AWS Benchmark Violations
 ## 4. Strategic Governance Recommendations
 """
@@ -103,6 +138,10 @@ Format:
                 tech_prompt = f"""
 You are a Senior DevSecOps Engineer. Based on this telemetry:
 {json.dumps(collected_data, indent=2)}
+
+The following findings were ranked by a deterministic risk-scoring engine
+(highest risk_score first) — remediate in this order:
+{json.dumps(risk_result["findings"], indent=2)}
 
 Generate a Technical Remediation Playbook for Cloud Engineers in Markdown.
 
@@ -144,7 +183,8 @@ Instructions to verify fixes and update Jira tickets (e.g. COMP-101) to RESOLVED
                     send_audit_report_email(
                         executive_report=executive_report,
                         technical_guide=technical_playbook,
-                        recipient_email=recipient
+                        recipient_email=recipient,
+                        risk_result=risk_result
                     )
                 else:
                     print("⚠️ [Dispatch Node] Approval declined. Dispatch cancelled.")
