@@ -22,7 +22,7 @@ The pipeline features Human-in-the-Loop (HITL) safety governance and automated d
 ---
 
 ## Folder Structure
-
+```
 tier3_enterprise_mcp/
 ├── app.py                     # Main orchestrator (auto-moto manager, MCP client, HITL, Ollama)
 ├── mcp_server.py             # FastMCP server exposing S3 and Jira tools with auto-seeding
@@ -35,7 +35,7 @@ tier3_enterprise_mcp/
 └── reports/                  # Generated audit report outputs
     ├── CISO_Executive_Summary.md
     └── Engineering_Remediation_Playbook.md
-
+```
 ---
 
 ## Execution Screenshots & Evidence
