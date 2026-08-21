@@ -70,15 +70,17 @@ source venv/bin/activate
 pip install "mcp[cli]" fastmcp boto3 langchain-openai langgraph python-dotenv
 
 ### 2. Configure Credentials (.env)
-Create a `.env` file inside `tier3_enterprise_mcp/`:
+Create a `.env` file at the **project root** (`~/multi-agent-auditor/.env`) — `email_utils.py` calls `load_dotenv()`, which walks up from the current working directory, so the root file is picked up whether you run `app.py` from `tier3_enterprise_mcp/` or elsewhere. The file is already gitignored.
 
+```
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SENDER_EMAIL=your-email@gmail.com
 SENDER_PASSWORD=your-16-char-app-password
 DEFAULT_RECIPIENT=recipient-email@example.com
+```
 
-Note: For Gmail, use a 16-character Google App Password (with 2FA enabled).
+Note: For Gmail, use a 16-character Google App Password (with 2FA enabled). If `SENDER_EMAIL`/`SENDER_PASSWORD` are missing, `email_utils.py` logs an error and skips dispatch rather than failing the whole run.
 
 ---
 
@@ -86,4 +88,8 @@ Note: For Gmail, use a 16-character Google App Password (with 2FA enabled).
 
 Execute the complete end-to-end pipeline with a single command from inside `tier3_enterprise_mcp`:
 
+```bash
 python app.py
+```
+
+At the HITL prompt, enter `yes` to approve dispatch, then either press Enter to send to `DEFAULT_RECIPIENT` from `.env` or type a different recipient address. Entering `no` skips email dispatch entirely.

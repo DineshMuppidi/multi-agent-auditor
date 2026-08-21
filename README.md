@@ -2,7 +2,7 @@
 
 A fully air‑gapped, multi‑agent AI system designed to automate enterprise infrastructure compliance auditing across a structured **three‑tier maturity model** (Static Prototype → Emulated Cloud Sandbox → Model Context Protocol).
 
-This system integrates **LangGraph**, **Ollama (`llama3.2`)**, **Moto**, and **FastMCP** to deliver deterministic, auditable, and HITL‑governed compliance assessments suitable for regulated enterprise environments.
+This system integrates **LangGraph**, **Ollama (`llama3.2`)**, **Moto**, and **FastMCP** to deliver deterministic, auditable, and HITL‑governed compliance assessments suitable for regulated enterprise environments. Tier 3 additionally dispatches the finished reports to stakeholders over email once a human operator approves them.
 
 ---
 
@@ -35,6 +35,11 @@ It is purpose‑built for CISOs, security architects, and compliance engineering
                |                 │                               |
                |                 ▼                               |
                |   [Final CISO Compliance Report]                |
+               |                 │                               |
+               |                 ▼                               |
+               |   [Email Dispatch Node]  (Tier 3 only)          |
+               |     Executive + Technical reports sent          |
+               |     via SMTP once HITL approval is given        |
                +-------------------------------------------------+
                                  │
      ┌───────────────────────────┼───────────────────────────┐
@@ -57,7 +62,7 @@ It is purpose‑built for CISOs, security architects, and compliance engineering
 |------|-----------|-----------------|----------|------------------|
 | **Tier 1** | `tier1_static_prototype/` | Static JSON (`mock_data/`) | Local Python I/O | Deterministic offline prototyping |
 | **Tier 2** | `tier2_cloud_sandbox/` | Moto AWS Emulator | boto3 SDK | Live telemetry parsing without external cloud |
-| **Tier 3** | `tier3_enterprise_mcp/` | FastMCP + Moto | MCP (`stdio`) | Enterprise‑grade protocol integration |
+| **Tier 3** | `tier3_enterprise_mcp/` | FastMCP + Moto | MCP (`stdio`) | Enterprise‑grade protocol integration + automated SMTP email dispatch of audit reports |
 
 ---
 
@@ -126,6 +131,11 @@ Suitable for governance reviews and compliance documentation.
 
 ---
 
+### **5. Email Dispatch Agent (Tier 3 only)**
+Once the CISO Executive Summary and Engineering Remediation Playbook are generated and an operator approves dispatch at the HITL gate, `email_utils.py` sends both Markdown reports as attachments to stakeholders over SMTP (defaults to a `.env`‑configured recipient, or an address entered interactively at runtime).
+
+---
+
 ## **🚀 Quick Start Guide**
 
 ### **Prerequisites**
@@ -157,6 +167,8 @@ python app.py
 
 ### **Tier 3 — MCP Enterprise Integration**
 
+Requires a `.env` file at the project root with SMTP credentials (see `tier3_enterprise_mcp/README.md`) so the Email Dispatch Agent can deliver reports after HITL approval.
+
 ```bash
 cd tier3_enterprise_mcp
 python app.py
@@ -169,18 +181,23 @@ python app.py
 ```
 multi-agent-auditor/
 ├── README.md
+├── .env                          # SMTP + shared credentials (gitignored; used by Tier 3)
 ├── tier1_static_prototype/
-│   ├── app.py
-│   ├── app_humanloop.py
-│   ├── tools.py
-│   └── mock_data/
+│   ├── app.py                    # Automated pipeline (static JSON evidence)
+│   ├── app_humanloop.py          # HITL guardrail pipeline
+│   ├── tools.py                  # Reads mock_data/ (S3, Jira, ServiceNow)
+│   ├── mock_data/
+│   └── README.md
 ├── tier2_cloud_sandbox/
-│   ├── app.py
-│   ├── app_humanloop.py
+│   ├── app.py                    # LangGraph workflow + entry point (Moto/boto3)
+│   ├── tools.py                  # Live boto3 S3 calls + simulated Jira/ServiceNow
 │   └── README.md
 └── tier3_enterprise_mcp/
-    ├── app.py
-    ├── mcp_server.py
+    ├── app.py                    # Moto auto-manager, MCP client, HITL gate, Ollama, email trigger
+    ├── mcp_server.py             # FastMCP server exposing S3 and Jira tools
+    ├── email_utils.py            # SMTP dispatch of dual Markdown reports as attachments
+    ├── assets/                   # Execution screenshots
+    ├── reports/                  # Generated audit report outputs
     └── README.md
 ```
 

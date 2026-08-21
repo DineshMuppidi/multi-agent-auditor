@@ -11,7 +11,7 @@ tier1_static_prototype/
 ├── app.py              # Automated pipeline (runs autonomously end-to-end)
 ├── app_humanloop.py    # Guardrail pipeline (requires explicit human approval)
 ├── tools.py            # Local file I/O tools for reading mock telemetry
-└── mock_data/          # Static JSON telemetry files (AWS S3, Jira, etc.)
+└── mock_data/          # Static JSON telemetry files (AWS S3, Jira, ServiceNow)
 
 ```
 
@@ -22,7 +22,7 @@ tier1_static_prototype/
 * 
 **Zero-Dependency Prototyping**: Operates completely offline without external cloud SDK connections, local emulators, or active network ports.
 * 
-**Deterministic Tool Execution**: Custom file-reading tools in `tools.py` ingest mock AWS S3 configurations and Jira ticketing states from `mock_data/`.
+**Deterministic Tool Execution**: Custom file-reading tools in `tools.py` ingest mock AWS S3 configurations, Jira ticketing states, and ServiceNow incidents from `mock_data/`.
 * 
 **State Graph Orchestration**: Built with **LangGraph** to coordinate multi-agent transitions between evidence collection, compliance analysis, and report generation.
 * 

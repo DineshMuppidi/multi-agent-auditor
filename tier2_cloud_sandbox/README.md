@@ -23,7 +23,7 @@ v                                         v
 ### 🔑 Key Highlights
 - **Live API Telemetry:** Replaces static JSON with real Boto3 calls against a running Moto S3 emulator.  
 - **Zero AWS Costs:** No IAM roles, no AWS credentials, no billing — everything runs offline.  
-- **Realistic Cloud Scanning:** Buckets, ACLs, encryption flags, and metadata are inspected exactly as they would be in AWS.  
+- **Realistic Cloud Scanning:** Buckets and inferred public/encryption posture are inspected via `tools.py`, alongside simulated Jira and ServiceNow evidence.  
 - **LLM‑Driven Analysis:** Telemetry is passed to a local Ollama model (`llama3.2`) for risk evaluation and report generation.
 
 ---
@@ -31,9 +31,9 @@ v                                         v
 ## 📂 File Structure
 
 ```text
-tier2_sandbox_aws/
-├── audit_agent.py   # LangGraph workflow performing Boto3 S3 scans
-├── app.py           # Entry point for Tier 2 audit pipeline
+tier2_cloud_sandbox/
+├── app.py           # LangGraph workflow (evidence → risk → report) and entry point
+├── tools.py         # Live boto3 S3 calls + simulated Jira/ServiceNow evidence fetchers
 └── README.md        # Documentation for Tier 2 module
 ```
 🛠️ Prerequisites & Setup
@@ -63,26 +63,27 @@ print('✅ Test S3 buckets initialized in Moto!')
 ```
 Step 3 — Run the Tier 2 Audit Pipeline
 ```bash
-python tier2_sandbox_aws/app.py
+python tier2_cloud_sandbox/app.py
 ```
 📊 Expected Output
 ```text
-🔍 [Agent 1: Evidence Collector] Scanning live emulated AWS S3 endpoint (http://localhost:4566)...
+🚀 Starting Moto‑Backed Cloud Emulation (Live Dev/Sandbox APIs) Multi-Agent Audit Flow...
+
+🔍 [Agent 1: Evidence Collector] Querying live AWS S3 API & Dev Sandbox endpoints...
    • Found Bucket: public-marketing-assets-temp
    • Found Bucket: unencrypted-storage-bucket
+   • Fetched Jira ticket: COMP-101 (Publicly Accessible S3 Bucket Detected)
+   • Fetched ServiceNow incident: INC0098234 (Unencrypted Storage Bucket Identified)
 
-⚖️ [Agent 2: Risk Compliance Agent] Evaluating telemetry with Ollama (llama3.2)...
+⚖️ [Agent 2: Compliance & Risk Agent] Analyzing live security evidence with Ollama...
+📝 [Agent 3: Reporting Agent] Compiling final executive report...
 
-=================== FINAL TIER 2 AUDIT REPORT ===================
-1. Discovered Resources:
-   - Target Endpoint: http://localhost:4566
-   - Scanned S3 Buckets: 'public-marketing-assets-temp', 'unencrypted-storage-bucket'
-
-2. Security Findings:
+=================== FINAL AUDIT REPORT (OPTION B) ===================
+1. Executive Summary
+2. Key Findings:
    - Potential public access exposure on 'public-marketing-assets-temp'.
    - Missing server-side encryption on 'unencrypted-storage-bucket'.
-
-3. Remediation Recommendations:
+3. Actionable Remediation Steps:
    - Enforce S3 Block Public Access policies.
    - Apply default KMS/AES-256 bucket encryption.
 ================================================================
