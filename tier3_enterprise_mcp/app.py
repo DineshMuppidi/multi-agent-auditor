@@ -23,7 +23,7 @@ async def run_mcp_audit():
     # Configure MCP Client parameters to execute your mcp_server.py
     server_params = StdioServerParameters(
         command="python3",
-        args=["option_c_mcp/mcp_server.py"],
+        args=["tier3_enterprise_mcp/mcp_server.py"],
         env=None
     )
 
