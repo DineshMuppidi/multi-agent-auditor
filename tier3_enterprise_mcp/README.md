@@ -1,104 +1,114 @@
-# Tier 3: Enterprise Multi-Agent Auditor (Model Context Protocol Interface)
+# Tier 3: Enterprise Multi-Agent Auditor (Model Context Protocol & HITL Dispatch)
 
-This directory contains **Tier 3** of the Multi-Agent Compliance Auditor project. In this module, local python function calls are decoupled into a standardized, production-ready **Model Context Protocol (MCP)** server architecture using `FastMCP`.
+This directory contains Tier 3 of the Multi-Agent DevSecOps Compliance Auditor project. In this module, local security auditing tools are decoupled into a standardized, production-ready Model Context Protocol (MCP) server architecture using FastMCP.
+
+The pipeline features Human-in-the-Loop (HITL) safety governance and automated dual-document email dispatching for executive and engineering stakeholders.
 
 ---
 
-## 🏛️ System Architecture
-```
-+-------------------------------------------------------------+
-|                      LangGraph Client                       |
-|                   (tier3_mcp/app.py)                        |
-+-------------------------------------------------------------+
-|                                     ^
-| 1. Spawns Subprocess                | 3. Synthesizes Telemetry
-v                                     |
-+-----------------------+              +----------------------+
-|     FastMCP Server    |              |   Local Ollama LLM   |
-| (tier3_mcp/mcp_server)|              |     (llama3.2)       |
-+-----------------------+              +----------------------+
-|
-| 2. Fetches AWS Telemetry
-v
-+-----------------------+
-|   Local Moto AWS S3   |
-| (http://localhost:4566) |
-+-----------------------+
-```
+## System Architecture
+
++-----------------------------------------------------------------------------------+
+|                                  LangGraph / MCP Client                           |
+|                                (tier3_enterprise_mcp/app.py)                      |
++-----------------------------------------------------------------------------------+
+        |                                 |                                 |
+        | 1. Auto-manages Lifecycle       | 2. Standardized Tool Call       | 3. Dual-Report Synthesizer
+        v                                 v                                 v
++-----------------------+       +-----------------------+       +-----------------------+
+|  Local Moto AWS S3    |       |    FastMCP Server     |       |    Local Ollama LLM   |
+| (http://localhost:4566) |       | (mcp_server.py)       |       |      (llama3.2)       |
++-----------------------+       +-----------------------+       +-----------------------+
+                                          |
+                                          | 4. Telemetry Synthesis
+                                          v
++-----------------------------------------------------------------------------------+
+|                        Human-in-the-Loop (HITL) Guardrail                         |
+|                       (Explicit Operator Approval Gate)                           |
++-----------------------------------------------------------------------------------+
+                                          |
+                                          | 5. Dual-Document Email Dispatch
+                                          v
++-----------------------------------------------------------------------------------+
+|                              Automated SMTP Dispatch                              |
+|   ├── CISO_Executive_Summary.md (High-Level Metrics & Compliance Scores)         |
+|   └── Engineering_Remediation_Playbook.md (AWS CLI Fixes & Patch Scripts)        |
++-----------------------------------------------------------------------------------+
 
 ### Key Highlights
-* **Zero Agent Rewrites:** The LLM client discovers tools via standardized MCP descriptors. If backend infrastructure changes, client logic remains untouched.
-* **Fault-Tolerant Exception Handling:** The MCP server catches connection failures gracefully, providing fallback payloads if local cloud endpoints go offline.
-* **Local First:** Runs completely offline on Kali Linux using local Moto AWS emulation and local Ollama (`llama3.2`).
+- Single-Command Execution: app.py automatically checks and manages the background lifecycle of the local AWS emulator (moto_server) on port 4566, starting and shutting it down cleanly.
+- Self-Contained & Decoupled: The FastMCP server auto-seeds S3 buckets (public-marketing-assets-temp, unencrypted-storage-bucket) and Jira compliance issues (COMP-101) upon tool invocation.
+- Dual-Document Audience Separation: Generates two distinct audit reports:
+  * CISO Executive Summary: High-level risk scores (0-100), telemetry risk matrices, and CIS AWS Benchmark violations.
+  * Engineering Remediation Playbook: Valid AWS CLI bash commands and step-by-step patch scripts for cloud engineers.
+- Human-in-the-Loop (HITL) Safety Guardrail: Pauses execution until an operator explicitly approves dispatch in the terminal.
+- 100% Local & Privacy-First: Operates offline on Kali Linux using local Ollama (llama3.2) and Moto emulation without API costs or telemetry exposure.
 
 ---
 
-## 📂 File Structure
+## Folder Structure
 
-```text
 tier3_enterprise_mcp/
-├── mcp_server.py   # FastMCP server exposing S3 and Jira auditing tools
-├── app.py          # MCP client & LangGraph agent synthesizing telemetry
-└── README.md       # Project documentation
-```
+├── app.py                     # Main orchestrator (auto-moto manager, MCP client, HITL, Ollama)
+├── mcp_server.py             # FastMCP server exposing S3 and Jira tools with auto-seeding
+├── email_utils.py            # Multi-attachment MIME email dispatch module
+├── README.md                 # Tier 3 project documentation
+├── assets/                   # Execution screenshots and proof artifacts
+│   ├── mcp_server_initiation.png
+│   ├── hitl_operator_approval_prompt.png
+│   └── smtp_email_received_proof.png
+└── reports/                  # Generated audit report outputs
+    ├── CISO_Executive_Summary.md
+    └── Engineering_Remediation_Playbook.md
 
-🛠️ Prerequisites & Setup
-Ensure your local virtual environment is active and required packages are installed:
+---
 
-```Bash
+## Execution Screenshots & Evidence
+
+### 1. FastMCP Server Discovery & Telemetry Collection
+When `app.py` runs, it connects to `mcp_server.py` over standard I/O transport, discovers exposed FastMCP tools (`inspect_s3_buckets`, `get_jira_compliance_status`), and queries live telemetry.
+
+![MCP Server Initiation](assets/mcp_server_initiation.png)
+
+---
+
+### 2. Human-in-the-Loop (HITL) Approval Prompt
+After local `llama3.2` synthesizes telemetry into dual Markdown reports, execution halts at an interactive security gate awaiting explicit operator confirmation before dispatching sensitive compliance findings.
+
+![HITL Operator Approval Prompt](assets/hitl_operator_approval_prompt.png)
+
+---
+
+### 3. SMTP Email Dispatch Verification
+Upon entering `yes` at the HITL prompt, `email_utils.py` connects to the configured SMTP server and delivers an email containing both Markdown reports as direct file attachments.
+
+![SMTP Email Received Proof](assets/smtp_email_received_proof.png)
+
+---
+
+## Prerequisites & Setup
+
+### 1. Virtual Environment Setup
+Ensure your Python virtual environment is activated and required libraries are installed:
+
 source venv/bin/activate
-pip install "mcp[cli]" fastmcp boto3 langchain-openai langgraph
-```
+pip install "mcp[cli]" fastmcp boto3 langchain-openai langgraph python-dotenv
 
-🚀 Execution Steps
+### 2. Configure Credentials (.env)
+Create a `.env` file inside `tier3_enterprise_mcp/`:
 
-Step 1: Start the Local AWS Endpoint (Moto)
-In your terminal, launch moto_server on port 4566 in the background:
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=your-email@gmail.com
+SENDER_PASSWORD=your-16-char-app-password
+DEFAULT_RECIPIENT=recipient-email@example.com
 
-```Bash
-moto_server -p 4566 > /dev/null 2>&1 &
-```
-Step 2: Seed Test S3 Buckets
-Initialize dummy buckets in your local Moto environment:
+Note: For Gmail, use a 16-character Google App Password (with 2FA enabled).
 
-```Bash
-python3 -c "
-import boto3
-s3 = boto3.client('s3', endpoint_url='http://localhost:4566', aws_access_key_id='test', aws_secret_access_key='test', region_name='us-east-1')
-s3.create_bucket(Bucket='public-marketing-assets-temp')
-s3.create_bucket(Bucket='unencrypted-storage-bucket')
-print('✅ Test S3 buckets initialized!')
-"
-```
-Step 3: Run the MCP Multi-Agent Pipeline
-Execute the main client script:
+---
 
-```Bash
-python tier3_enterprise_mcp/app.py
-```
+## How to Run
 
-📊 Expected Output
+Execute the complete end-to-end pipeline with a single command from inside `tier3_enterprise_mcp`:
 
-```Bash
-Starting MCP server 'Enterprise Audit Tool Server' with transport 'stdio'
-
-📡 [MCP Layer] Successfully connected! Discovered Tools:
-   • Tool Name: inspect_s3_buckets | Description: Queries live S3 buckets from local AWS endpoint.
-   • Tool Name: get_jira_compliance_status | Description: Fetches open compliance and remediation tickets.
-
-🔍 [Agent 1: MCP Evidence Collector] Requesting live S3 & Jira telemetry...
-
-⚖️ [Agent 2: Risk Compliance Agent] Evaluating MCP telemetry with Ollama...
-
-=================== FINAL MCP AUDIT REPORT ===================
-1. Executive Summary:
-   - S3 Bucket 'public-marketing-assets-temp' contains public exposure risks.
-   - S3 Bucket 'unencrypted-storage-bucket' lacks server-side encryption.
-
-2. Jira Cross-Reference:
-   - Ticket COMP-101 is actively tracking remediation.
-
-3. Actionable Next Steps:
-   - Block public access on 'public-marketing-assets-temp'.
-   - Enable AES-256 server-side encryption on 'unencrypted-storage-bucket'.
-==============================================================
+python app.py
