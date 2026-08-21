@@ -1,0 +1,14 @@
+[
+  {
+    "bucket_name": "corp-audit-logs-2026",
+    "region": "us-east-1",
+    "public_access": false,
+    "encryption": "AES256"
+  },
+  {
+    "bucket_name": "public-marketing-assets-temp",
+    "region": "us-west-2",
+    "public_access": true,
+    "encryption": "None"
+  }
+]

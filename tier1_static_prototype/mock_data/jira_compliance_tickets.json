@@ -1,0 +1,16 @@
+[
+  {
+    "ticket_id": "COMP-101",
+    "summary": "Fix public S3 bucket permissions",
+    "status": "In Progress",
+    "assignee": "alex.dev@corp.com",
+    "severity": "High"
+  },
+  {
+    "ticket_id": "COMP-102",
+    "summary": "Quarterly IAM policy review",
+    "status": "Closed",
+    "assignee": "security-team@corp.com",
+    "severity": "Medium"
+  }
+]
