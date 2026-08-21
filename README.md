@@ -185,18 +185,3 @@ multi-agent-auditor/
 ```
 
 ---
-
-## **📜 License**
-
-MIT License
-
----
-
-If you want, I can also generate:
-
-- **A CISO Executive Briefing**  
-- **A Threat Model Section**  
-- **Mermaid Architecture Diagrams**  
-- **CIS Benchmark Mapping**  
-
-Just tell me which one you want next.
