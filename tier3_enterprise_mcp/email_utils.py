@@ -5,6 +5,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from dotenv import load_dotenv
 
+from pdf_report import render_report_pdf
+
 load_dotenv()
 
 def send_audit_report_email(executive_report: str, technical_guide: str, recipient_email: str = None):
@@ -33,8 +35,8 @@ def send_audit_report_email(executive_report: str, technical_guide: str, recipie
         <p>The automated <b>Multi-Agent Compliance Auditor</b> has completed its telemetry scan and risk evaluation.</p>
         <p>Following Human-In-The-Loop (HITL) approval, two comprehensive reports have been attached:</p>
         <ul>
-          <li><b>CISO_Executive_Summary.md</b>: High-level risk score, metrics, and CIS compliance benchmarks for leadership.</li>
-          <li><b>Engineering_Remediation_Playbook.md</b>: Step-by-step CLI commands and patch instructions for cloud engineers.</li>
+          <li><b>CISO_Executive_Summary.pdf</b>: High-level risk score, metrics, and CIS compliance benchmarks for leadership.</li>
+          <li><b>Engineering_Remediation_Playbook.pdf</b>: Step-by-step CLI commands and patch instructions for cloud engineers.</li>
         </ul>
         <br>
         <p>Best regards,<br><b>Automated DevSecOps Governance Pipeline</b></p>
@@ -43,14 +45,21 @@ def send_audit_report_email(executive_report: str, technical_guide: str, recipie
     """
     msg.attach(MIMEText(html_body, 'html'))
 
+    try:
+        executive_pdf = render_report_pdf(executive_report, "Executive Summary")
+        technical_pdf = render_report_pdf(technical_guide, "Remediation Playbook")
+    except Exception as e:
+        print(f"❌ [PDF Error] Failed to render report PDFs: {e}")
+        return False
+
     # Attachment 1: Executive Report
-    part1 = MIMEApplication(executive_report.encode('utf-8'), Name='CISO_Executive_Summary.md')
-    part1['Content-Disposition'] = 'attachment; filename="CISO_Executive_Summary.md"'
+    part1 = MIMEApplication(executive_pdf, _subtype='pdf', Name='CISO_Executive_Summary.pdf')
+    part1['Content-Disposition'] = 'attachment; filename="CISO_Executive_Summary.pdf"'
     msg.attach(part1)
 
     # Attachment 2: Technical Remediation Playbook
-    part2 = MIMEApplication(technical_guide.encode('utf-8'), Name='Engineering_Remediation_Playbook.md')
-    part2['Content-Disposition'] = 'attachment; filename="Engineering_Remediation_Playbook.md"'
+    part2 = MIMEApplication(technical_pdf, _subtype='pdf', Name='Engineering_Remediation_Playbook.pdf')
+    part2['Content-Disposition'] = 'attachment; filename="Engineering_Remediation_Playbook.pdf"'
     msg.attach(part2)
 
     try:

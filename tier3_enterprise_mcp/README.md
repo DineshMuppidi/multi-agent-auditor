@@ -16,6 +16,7 @@ The pipeline features Human-in-the-Loop (HITL) safety governance and automated d
 - Dual-Document Audience Separation: Generates two distinct audit reports:
   * CISO Executive Summary: High-level risk scores (0-100), telemetry risk matrices, and CIS AWS Benchmark violations.
   * Engineering Remediation Playbook: Valid AWS CLI bash commands and step-by-step patch scripts for cloud engineers.
+- Styled PDF Rendering: `pdf_report.py` converts each Markdown report into a branded, print-ready PDF (WeasyPrint) — cover band, a compliance score card pulled from the LLM's audit score, styled risk tables with severity badges, and dark-themed code blocks for CLI commands — instead of mailing raw `.md` text.
 - Human-in-the-Loop (HITL) Safety Guardrail: Pauses execution until an operator explicitly approves dispatch in the terminal.
 - 100% Local & Privacy-First: Operates offline on Kali Linux using local Ollama (llama3.2) and Moto emulation without API costs or telemetry exposure.
 
@@ -26,6 +27,7 @@ The pipeline features Human-in-the-Loop (HITL) safety governance and automated d
 tier3_enterprise_mcp/
 ├── app.py                     # Main orchestrator (auto-moto manager, MCP client, HITL, Ollama)
 ├── mcp_server.py             # FastMCP server exposing S3 and Jira tools with auto-seeding
+├── pdf_report.py             # Markdown → styled PDF renderer (WeasyPrint)
 ├── email_utils.py            # Multi-attachment MIME email dispatch module
 ├── README.md                 # Tier 3 project documentation
 ├── assets/                   # Execution screenshots and proof artifacts
@@ -33,8 +35,8 @@ tier3_enterprise_mcp/
 │   ├── hitl_operator_approval_prompt.png
 │   └── smtp_email_received_proof.png
 └── reports/                  # Generated audit report outputs
-    ├── CISO_Executive_Summary.md
-    └── Engineering_Remediation_Playbook.md
+    ├── CISO_Executive_Summary.pdf
+    └── Engineering_Remediation_Playbook.pdf
 ```
 ---
 
@@ -55,7 +57,7 @@ After local `llama3.2` synthesizes telemetry into dual Markdown reports, executi
 ---
 
 ### 3. SMTP Email Dispatch Verification
-Upon entering `yes` at the HITL prompt, `email_utils.py` connects to the configured SMTP server and delivers an email containing both Markdown reports as direct file attachments.
+Upon entering `yes` at the HITL prompt, `pdf_report.py` renders both Markdown reports into styled PDFs and `email_utils.py` connects to the configured SMTP server and delivers an email with both PDFs as attachments.
 
 ![SMTP Email Received Proof](assets/smtp_email_received_proof.png)
 
@@ -66,8 +68,12 @@ Upon entering `yes` at the HITL prompt, `email_utils.py` connects to the configu
 ### 1. Virtual Environment Setup
 Ensure your Python virtual environment is activated and required libraries are installed:
 
+```bash
 source venv/bin/activate
-pip install "mcp[cli]" fastmcp boto3 langchain-openai langgraph python-dotenv
+pip install "mcp[cli]" fastmcp boto3 langchain-openai langgraph python-dotenv weasyprint markdown
+```
+
+`weasyprint` renders the PDFs and depends on system libraries (Pango, cairo, GDK-Pixbuf) for text/graphics layout — these are already present on this Kali image. On a fresh machine without them, install via `apt install libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf2.0-0` (Debian/Ubuntu) before `pip install weasyprint`.
 
 ### 2. Configure Credentials (.env)
 Create a `.env` file at the **project root** (`~/multi-agent-auditor/.env`) — `email_utils.py` calls `load_dotenv()`, which walks up from the current working directory, so the root file is picked up whether you run `app.py` from `tier3_enterprise_mcp/` or elsewhere. The file is already gitignored.
