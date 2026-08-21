@@ -7,33 +7,8 @@ The pipeline features Human-in-the-Loop (HITL) safety governance and automated d
 ---
 
 ## System Architecture
-
-+-----------------------------------------------------------------------------------+
-|                                  LangGraph / MCP Client                           |
-|                                (tier3_enterprise_mcp/app.py)                      |
-+-----------------------------------------------------------------------------------+
-        |                                 |                                 |
-        | 1. Auto-manages Lifecycle       | 2. Standardized Tool Call       | 3. Dual-Report Synthesizer
-        v                                 v                                 v
-+-----------------------+       +-----------------------+       +-----------------------+
-|  Local Moto AWS S3    |       |    FastMCP Server     |       |    Local Ollama LLM   |
-| (http://localhost:4566) |       | (mcp_server.py)       |       |      (llama3.2)       |
-+-----------------------+       +-----------------------+       +-----------------------+
-                                          |
-                                          | 4. Telemetry Synthesis
-                                          v
-+-----------------------------------------------------------------------------------+
-|                        Human-in-the-Loop (HITL) Guardrail                         |
-|                       (Explicit Operator Approval Gate)                           |
-+-----------------------------------------------------------------------------------+
-                                          |
-                                          | 5. Dual-Document Email Dispatch
-                                          v
-+-----------------------------------------------------------------------------------+
-|                              Automated SMTP Dispatch                              |
-|   ├── CISO_Executive_Summary.md (High-Level Metrics & Compliance Scores)         |
-|   └── Engineering_Remediation_Playbook.md (AWS CLI Fixes & Patch Scripts)        |
-+-----------------------------------------------------------------------------------+
+ 
+ ![System Architecture](assets/system_arc.png)
 
 ### Key Highlights
 - Single-Command Execution: app.py automatically checks and manages the background lifecycle of the local AWS emulator (moto_server) on port 4566, starting and shutting it down cleanly.
